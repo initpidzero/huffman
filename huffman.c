@@ -7,6 +7,26 @@ struct table {
 	struct table *next;
 };
 
+void swap_node(struct table *node1, struct table *node2)
+{
+	char letter = node1->letter;
+	int freq = node1->freq;
+	node1->letter =node2->letter;
+	node1->freq = node2->freq;
+	node2->letter = letter;
+	node2->freq = freq;
+}
+
+void print_table(struct table *table)
+{
+	struct table *temp;
+		printf("character	frequency\n");
+	for (temp = table; temp; temp = temp->next) {
+		printf("%c		%d\n", temp->letter, temp->freq);
+	}
+}
+
+
 int present_in_table(char str, struct table *table)
 {
 		struct table *temp;
@@ -16,6 +36,19 @@ int present_in_table(char str, struct table *table)
 		}
 		return 0;
 
+}
+
+int sort_table(struct table *table)
+{
+		struct table *cur = table;
+		struct table *next = table->next;
+		for (cur = table; cur->next != NULL; cur = cur->next) {
+			for(next = cur->next; next != NULL; next = next->next) {
+				if(next->freq < cur->freq)
+					swap_node(cur, next);
+			}
+		}
+		print_table(table);
 }
 
 /* TODO get rid of this function since we are not using this anymore */
@@ -67,15 +100,6 @@ void free_table(struct table *table)
 	}
 }
 
-void print_table(struct table *table)
-{
-	struct table *temp;
-		printf("character	frequency\n");
-	for (temp = table; temp; temp = temp->next) {
-		printf("%c		%d\n", temp->letter, temp->freq);
-	}
-}
-
 int main (int argc, char *argv[])
 {
 	char *str = "ABABABABCDDDEAABBECEADFBADFDFA";
@@ -113,6 +137,7 @@ int main (int argc, char *argv[])
 
 	}
 	print_table(table);
+	sort_table(table);
 	printf("%s\n", str);
 err:
 	if (table) free_table(table);
