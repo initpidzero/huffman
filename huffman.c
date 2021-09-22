@@ -7,6 +7,17 @@ struct table {
 	struct table *next;
 };
 
+int present_in_table(char str, struct table *table)
+{
+		struct table *temp;
+		for (temp = table; temp; temp = temp->next) {
+			if(str == temp->letter)
+				return 1;
+		}
+		return 0;
+
+}
+
 int find_next_unique(char *str, struct table *table)
 {
 	struct table *temp;
@@ -25,16 +36,23 @@ int find_next_unique(char *str, struct table *table)
 	return -1;
 }
 
-int number_of_occurence(char * str, struct table *node)
+int number_of_occurence(char * str, struct table *node, struct table *table)
 {
 	char *temp;
+	int unique = 0;
 	for (temp = str; *temp; temp++) {
 		if (*temp == node->letter)
 			node->freq++;
+		else
+			if (!unique) {
+				if (!present_in_table(*temp, table))
+					unique = temp - str;
+			} else
+				printf("unique = %d\n", unique);
 
 	}
 
-	return 0;
+	return unique;
 }
 
 void free_table(struct table *table)
@@ -72,7 +90,7 @@ int main (void)
 	table->next = NULL;
 	while(str[i]) {
 		int pos_of_next = 0;
-		number_of_occurence(str, temp);
+		number_of_occurence(str, temp, table);
 		pos_of_next = find_next_unique(str, table);
 		if (pos_of_next != -1) {
 			i  = pos_of_next;
