@@ -7,6 +7,14 @@ struct table {
 	struct table *next;
 };
 
+struct tree {
+	char letter;
+	int freq;
+	struct tree *left;
+	struct tree *right;
+
+};
+
 void swap_node(struct table *node1, struct table *node2)
 {
 	char letter = node1->letter;
@@ -98,6 +106,43 @@ void free_table(struct table *table)
 		temp = NULL;
 		temp = cur;
 	}
+}
+
+struct tree *add_tree_node(char letter, int freq)
+{
+	struct tree *tree = (struct tree *)malloc(sizeof(struct tree));
+	tree->letter = letter;
+	tree->freq = freq;
+	tree->left = NULL;
+	tree->right = NULL;
+
+	return tree;
+}
+
+struct tree *create_tree(struct table *lnode, struct table *rnode)
+{
+		struct tree *root;
+		struct tree *temp;
+
+		root = add_tree_node(-1, lnode->freq + rnode->freq);
+
+		temp = add_tree_node(lnode->letter, lnode->freq);
+		root->left = temp; /* attach left node */
+
+		temp = add_tree_node(rnode->letter, rnode->freq);
+		root->right = temp; /* attach right node */
+
+		return root;
+}
+
+int create_huffman_tree(struct table *table)
+{
+
+		struct table *cur = table;
+		struct table *next = table->next;
+		struct tree *c_root = create_tree() 
+		for (cur = table; cur->next != NULL; cur = cur->next) {
+		}
 }
 
 int main (int argc, char *argv[])
