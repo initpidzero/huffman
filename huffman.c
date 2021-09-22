@@ -18,6 +18,7 @@ int present_in_table(char str, struct table *table)
 
 }
 
+/* TODO get rid of this function since we are not using this anymore */
 int find_next_unique(char *str, struct table *table)
 {
 	struct table *temp;
@@ -75,7 +76,7 @@ void print_table(struct table *table)
 	}
 }
 
-int main (void)
+int main (int argc, char *argv[])
 {
 	char *str = "ABABABABCDDDEAABBECEADFBADFDFA";
 	int i = 0;
@@ -85,14 +86,16 @@ int main (void)
 	if (!table)
 		return -1;
 
+	if (argc >1)
+		str = argv[1];
+
 	table->letter = str[i];
 	table->freq = 0;
 	table->next = NULL;
 	while(str[i]) {
 		int pos_of_next = 0;
-		number_of_occurence(str, temp, table);
-		pos_of_next = find_next_unique(str, table);
-		if (pos_of_next != -1) {
+		pos_of_next = number_of_occurence(str, temp, table);
+		if (pos_of_next) {
 			i  = pos_of_next;
 			printf("pos = %d i = %d\n", pos_of_next, i);
 			temp->next = (struct table *)malloc(sizeof(struct table));
