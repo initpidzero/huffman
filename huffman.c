@@ -103,21 +103,34 @@ int number_of_occurence(char * str, struct table *node, struct table *table)
 	return unique;
 }
 
+void free_tree(struct tree *tree)
+{
+	if (tree->left == NULL && tree->right == NULL)
+		free(tree);
+	else if (tree->left)
+		free_tree(tree->left);
+	else if (tree->right)
+		free_tree(tree->right);
+
+}
+
 void free_table(struct table *table)
 {
-	struct table *temp = table;
-	struct table *cur;
-	for (cur = temp->next; cur; cur = cur->next) {
+	struct table *cur = table;
+	while(cur) {
+		struct table *temp = cur;
+		cur = cur->next;
 		free(temp);
 		temp = NULL;
-		temp = cur;
 	}
 }
 
-int traverse_tree(struct tree *tree, enum direction dir)
+void traverse_tree(struct tree *tree, enum direction dir)
 {
 	if (!tree)
-		return 0;
+		return;
+
+	traverse_tree(tree->left, LEFT);
 	if (dir == ROOT) {
 		printf("root node\n");
 		printf("total freq = %d\n",tree->freq);
@@ -133,13 +146,8 @@ int traverse_tree(struct tree *tree, enum direction dir)
 			printf("letter = %c\n",tree->letter);
 
 	}
+	traverse_tree(tree->right, RIGHT);
 
-	if (tree->left)
-		traverse_tree(tree->left, LEFT);
-	if (tree->right)
-		traverse_tree(tree->right, RIGHT);
-
-	return 0;
 }
 
 struct tree *add_tree_node(char letter, int freq)
@@ -267,9 +275,11 @@ int main (int argc, char *argv[])
 	sort_table(table);
 	huffman_tree = create_huffman_tree(table);
 	traverse_tree(huffman_tree, ROOT);
+
 	printf("%s\n", str);
 err:
 	if (table) free_table(table);
+	if (huffman_tree) free_tree(huffman_tree);
 
 	return ret;
 }
