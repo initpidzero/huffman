@@ -15,6 +15,12 @@ struct tree {
 
 };
 
+enum direction {
+	ROOT,
+	LEFT,
+	RIGHT
+};
+
 void swap_node(struct table *node1, struct table *node2)
 {
 	char letter = node1->letter;
@@ -108,6 +114,34 @@ void free_table(struct table *table)
 	}
 }
 
+int traverse_tree(struct tree *tree, enum direction dir)
+{
+	if (!tree)
+		return 0;
+	if (dir == ROOT) {
+		printf("root node\n");
+		printf("total freq = %d\n",tree->freq);
+	} else if (dir == LEFT) {
+		printf("1\n");
+		printf("total freq = %d\n",tree->freq);
+		if (tree->letter != -1)
+			printf("letter = %c\n",tree->letter);
+	} else {
+		printf("0\n");
+		printf("total freq = %d\n",tree->freq);
+		if (tree->letter != -1)
+			printf("letter = %c\n",tree->letter);
+
+	}
+
+	if (tree->left)
+		traverse_tree(tree->left, LEFT);
+	if (tree->right)
+		traverse_tree(tree->right, RIGHT);
+
+	return 0;
+}
+
 struct tree *add_tree_node(char letter, int freq)
 {
 	struct tree *tree = (struct tree *)malloc(sizeof(struct tree));
@@ -116,6 +150,7 @@ struct tree *add_tree_node(char letter, int freq)
 	tree->left = NULL;
 	tree->right = NULL;
 
+	printf("char = %c freq =%d\n", (tree->letter == -1)?'?':tree->letter, tree->freq);
 	return tree;
 }
 
@@ -162,7 +197,7 @@ struct tree *combine_tree(struct tree *tree, struct tree *new_tree)
 	return root;
 }
 
-int create_huffman_tree(struct table *table)
+struct tree * create_huffman_tree(struct table *table)
 {
 	struct table *cur = table;
 	struct table *next = cur->next;
@@ -186,10 +221,13 @@ int create_huffman_tree(struct table *table)
 		}
 
 	}
+
+	return c_root;
 }
 
 int main (int argc, char *argv[])
 {
+	struct tree *huffman_tree;
 	char *str = "ABABABABCDDDEAABBECEADFBADFDFA";
 	int i = 0;
 	int ret = 0;
@@ -226,6 +264,8 @@ int main (int argc, char *argv[])
 	}
 	print_table(table);
 	sort_table(table);
+	huffman_tree = create_huffman_tree(table);
+	traverse_tree(huffman_tree, ROOT);
 	printf("%s\n", str);
 err:
 	if (table) free_table(table);
