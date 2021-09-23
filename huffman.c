@@ -154,6 +154,7 @@ struct tree *add_tree_node(char letter, int freq)
 	return tree;
 }
 
+/* make a tree with two table nodes */
 struct tree *create_tree(struct table *lnode, struct table *rnode)
 {
 	struct tree *root;
@@ -170,9 +171,20 @@ struct tree *create_tree(struct table *lnode, struct table *rnode)
 	return root;
 }
 
+/* make a tree with two tree nodes*/
+struct tree *combine_tree(struct tree *tree, struct tree *new_tree)
+{
+	struct tree *root;
+	root = add_tree_node(-1, tree->freq + new_tree->freq);
+	root->left = tree; /* attach left node */
+	root->right = new_tree; /* attach right node */
+
+	return root;
+}
+
+/* make a tree by attaching tree node to left and table node to right*/
 struct tree *create_mix_tree(struct tree *tree, struct table *node)
 {
-
 	struct tree *root;
 	struct tree *temp;
 
@@ -184,17 +196,6 @@ struct tree *create_mix_tree(struct tree *tree, struct table *node)
 	root->right = temp; /* attach right node */
 
 	return root;
-
-}
-
-struct tree *combine_tree(struct tree *tree, struct tree *new_tree)
-{
-	struct tree *root;
-	root = add_tree_node(-1, tree->freq + new_tree->freq);
-	root->left = tree; /* attach left node */
-	root->right = new_tree; /* attach right node */
-
-	return root;
 }
 
 struct tree * create_huffman_tree(struct table *table)
@@ -203,21 +204,21 @@ struct tree * create_huffman_tree(struct table *table)
 	struct table *next = cur->next;
 	struct tree *c_root = create_tree(cur, next);
 
-	for (cur = next->next; cur->next != NULL; cur = cur->next) {
-		struct tree *temp;
-		if (cur->next) {
-			next = cur->next;
+	for (cur = next->next; cur != NULL; cur = cur->next) {
+		struct tree *temp = NULL;
+		next = cur->next;
+		if (next) {
 			if (c_root->freq <= next->freq) {
 				temp = create_mix_tree(c_root, cur);
 				c_root = temp;
 			} else {
 				temp = create_tree(cur, next);
 				c_root = combine_tree(c_root, temp);
+				cur = next; /* we have consumed both */
 			}
 
 		} else {
-			temp = create_mix_tree(c_root, cur);
-			c_root = temp;
+			c_root = create_mix_tree(c_root, cur);
 		}
 
 	}
