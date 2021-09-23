@@ -28,7 +28,7 @@ void swap_node(struct table *node1, struct table *node2)
 void print_table(struct table *table)
 {
 	struct table *temp;
-		printf("character	frequency\n");
+	printf("character	frequency\n");
 	for (temp = table; temp; temp = temp->next) {
 		printf("%c		%d\n", temp->letter, temp->freq);
 	}
@@ -37,26 +37,26 @@ void print_table(struct table *table)
 
 int present_in_table(char str, struct table *table)
 {
-		struct table *temp;
-		for (temp = table; temp; temp = temp->next) {
-			if(str == temp->letter)
-				return 1;
-		}
-		return 0;
+	struct table *temp;
+	for (temp = table; temp; temp = temp->next) {
+		if(str == temp->letter)
+			return 1;
+	}
+	return 0;
 
 }
 
 int sort_table(struct table *table)
 {
-		struct table *cur = table;
-		struct table *next = table->next;
-		for (cur = table; cur->next != NULL; cur = cur->next) {
-			for(next = cur->next; next != NULL; next = next->next) {
-				if(next->freq < cur->freq)
-					swap_node(cur, next);
-			}
+	struct table *cur = table;
+	struct table *next = table->next;
+	for (cur = table; cur->next != NULL; cur = cur->next) {
+		for(next = cur->next; next != NULL; next = next->next) {
+			if(next->freq < cur->freq)
+				swap_node(cur, next);
 		}
-		print_table(table);
+	}
+	print_table(table);
 }
 
 /* TODO get rid of this function since we are not using this anymore */
@@ -121,28 +121,71 @@ struct tree *add_tree_node(char letter, int freq)
 
 struct tree *create_tree(struct table *lnode, struct table *rnode)
 {
-		struct tree *root;
-		struct tree *temp;
+	struct tree *root;
+	struct tree *temp;
 
-		root = add_tree_node(-1, lnode->freq + rnode->freq);
+	root = add_tree_node(-1, lnode->freq + rnode->freq);
 
-		temp = add_tree_node(lnode->letter, lnode->freq);
-		root->left = temp; /* attach left node */
+	temp = add_tree_node(lnode->letter, lnode->freq);
+	root->left = temp; /* attach left node */
 
-		temp = add_tree_node(rnode->letter, rnode->freq);
-		root->right = temp; /* attach right node */
+	temp = add_tree_node(rnode->letter, rnode->freq);
+	root->right = temp; /* attach right node */
 
-		return root;
+	return root;
+}
+
+struct tree *create_mix_tree(struct tree *tree, struct table *node)
+{
+
+	struct tree *root;
+	struct tree *temp;
+
+	root = add_tree_node(-1, tree->freq + node->freq);
+
+	root->left = tree; /* attach left node */
+
+	temp = add_tree_node(node->letter, node->freq);
+	root->right = temp; /* attach right node */
+
+	return root;
+
+}
+
+struct tree *combine_tree(struct tree *tree, struct tree *new_tree)
+{
+	struct tree *root;
+	root = add_tree_node(-1, tree->freq + new_tree->freq);
+	root->left = tree; /* attach left node */
+	root->right = new_tree; /* attach right node */
+
+	return root;
 }
 
 int create_huffman_tree(struct table *table)
 {
+	struct table *cur = table;
+	struct table *next = cur->next;
+	struct tree *c_root = create_tree(cur, next);
 
-		struct table *cur = table;
-		struct table *next = table->next;
-		struct tree *c_root = create_tree() 
-		for (cur = table; cur->next != NULL; cur = cur->next) {
+	for (cur = next->next; cur->next != NULL; cur = cur->next) {
+		struct tree *temp;
+		if (cur->next) {
+			next = cur->next;
+			if (c_root->freq <= next->freq) {
+				temp = create_mix_tree(c_root, cur);
+				c_root = temp;
+			} else {
+				temp = create_tree(cur, next);
+				c_root = combine_tree(c_root, temp);
+			}
+
+		} else {
+			temp = create_mix_tree(c_root, cur);
+			c_root = temp;
 		}
+
+	}
 }
 
 int main (int argc, char *argv[])
