@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 struct table {
 	char letter;
@@ -15,11 +16,20 @@ struct tree {
 
 };
 
+struct code_table {
+	char letter;
+	char *code_prefix;
+	int len;
+};
+
 enum direction {
 	ROOT,
 	LEFT,
 	RIGHT
 };
+
+static int total_leaves = 0;
+static int depth = 0;
 
 void swap_node(struct table *node1, struct table *node2)
 {
@@ -54,6 +64,7 @@ int present_in_table(char str, struct table *table)
 
 int sort_table(struct table *table)
 {
+	int total_nodes  = 1; /* since we are skipping last node, we start at 1 */
 	struct table *cur = table;
 	struct table *next = table->next;
 	for (cur = table; cur->next != NULL; cur = cur->next) {
@@ -61,8 +72,12 @@ int sort_table(struct table *table)
 			if(next->freq < cur->freq)
 				swap_node(cur, next);
 		}
+		total_nodes++;
 	}
+	printf("total_nodes = %d\n", total_nodes);
 	print_table(table);
+
+	return total_nodes;
 }
 
 /* TODO get rid of this function since we are not using this anymore */
@@ -101,6 +116,14 @@ int number_of_occurence(char * str, struct table *node, struct table *table)
 	}
 
 	return unique;
+}
+
+void free_code_table(struct code_table *codes, int total)
+{
+	int i;
+	for(i =0; i < total; i++)
+		if (codes[i].code_prefix) free(codes[i].code_prefix);
+	free(codes);
 }
 
 void free_tree(struct tree *tree)
@@ -234,8 +257,61 @@ struct tree * create_huffman_tree(struct table *table)
 	return c_root;
 }
 
+void find_in_tree(struct tree *tree, char letter,  char *value, enum direction dir, int *count)
+{
+	if (!tree)
+		return;
+	if (dir == ROOT) {
+	} else if (dir == LEFT) {
+		value[*count] = 'a';
+		(*count)++;
+		printf("%d\n",*count);
+		if (tree->letter == letter) {
+			printf("%c %d %s\n",letter, *count, value);
+			depth = *count;
+			return;
+		}
+	} else {
+		value[*count] = 'b';
+		(*count)++;
+		printf("%d\n",*count);
+		if (tree->letter == letter) {
+			printf("%c %d %s\n",letter, *count, value);
+			depth = *count;
+			return;
+		}
+	}
+	find_in_tree(tree->left, letter, value, LEFT, count);
+	find_in_tree(tree->right, letter, value, RIGHT, count);
+
+}
+
+int convert_to_codes(struct tree *tree, struct code_table *codes)
+{
+	int i;
+	char value[8];
+	for (i = 0; i < total_leaves; i++) {
+		int j;
+		depth = 0;
+		memset(value, 0, 8);
+		find_in_tree(tree, codes[i].letter, value, ROOT, &depth);
+		printf("depth = %d\n", depth);
+		codes[i].len = depth;
+
+		codes[i].code_prefix = (char *)malloc(depth);
+		if (!codes[i].code_prefix)
+			return -1;
+
+		for (j = 0; j < depth; j++)
+			codes[i].code_prefix[j] = value[j];
+
+	}
+
+}
+
 int main (int argc, char *argv[])
 {
+	struct code_table *codes;
 	struct tree *huffman_tree;
 	char *str = "ABABABABCDDDEAABBECEADFBADFDFA";
 	int i = 0;
@@ -272,14 +348,35 @@ int main (int argc, char *argv[])
 
 	}
 	print_table(table);
-	sort_table(table);
+	total_leaves = sort_table(table);
 	huffman_tree = create_huffman_tree(table);
 	traverse_tree(huffman_tree, ROOT);
 
+	codes = malloc(sizeof(struct code_table) * total_leaves);
+	if (!codes)
+		goto err;
+
+	for (temp = table, i = 0; temp; temp=temp->next, i++) {
+		codes[i].letter = temp->letter;
+		codes[i].code_prefix = NULL;
+		printf("codes letter = %c\n", codes[i].letter);
+	}
+
+	if (convert_to_codes(huffman_tree, codes) == -1)
+		goto err;
+
 	printf("%s\n", str);
+	for (i = 0; i < total_leaves; i++) {
+		int j;
+		printf("letter = %c code =", codes[i].letter);
+		for (j = 0; j < codes[i].len; j++)
+			printf("%c", codes[i].code_prefix[j]);
+		printf("\n");
+	}
 err:
 	if (table) free_table(table);
 	if (huffman_tree) free_tree(huffman_tree);
+	if (codes) free_code_table(codes, total_leaves);
 
 	return ret;
 }
