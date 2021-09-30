@@ -23,9 +23,18 @@ struct code_table {
 };
 
 enum direction {
-	ROOT,
-	LEFT,
-	RIGHT
+	RIGHT = 0,
+	LEFT = 1,
+	ROOT = 2,
+};
+
+struct path {
+	int letter;
+	int len;
+	int cur;
+	void **pointer;
+	int *dir;
+	struct code_table *codes;
 };
 
 static int total_leaves = 0;
@@ -80,25 +89,6 @@ int sort_table(struct table *table)
 	return total_nodes;
 }
 
-/* TODO get rid of this function since we are not using this anymore */
-int find_next_unique(char *str, struct table *table)
-{
-	struct table *temp;
-	char *new = str;
-
-	for(; *new; new++) {
-		int match = 0;
-		for (temp = table; temp; temp = temp->next) {
-			if(*new == temp->letter)
-				match = 1;
-			printf("*str %c temp->letter %c\n", *new,temp->letter);
-		}
-		if (!match)
-			return new - str;
-	}
-	return -1;
-}
-
 int number_of_occurence(char * str, struct table *node, struct table *table)
 {
 	char *temp;
@@ -148,28 +138,41 @@ void free_table(struct table *table)
 	}
 }
 
-void traverse_tree(struct tree *tree, enum direction dir)
+void print_path(struct path *path)
+{
+
+	printf("print path for %c cur = %d:\n",path->letter, path->cur);
+
+	for (int i = 0; i < path->len; i++) {
+		if(!path->pointer[i])
+			break;
+		printf("%p\n",path->pointer[i]);
+		printf("%d\n",path->dir[i]);
+	}
+}
+
+void print_preorder(struct tree *tree, enum direction dir)
 {
 	if (!tree)
 		return;
 
-	traverse_tree(tree->left, LEFT);
 	if (dir == ROOT) {
-		printf("root node\n");
-		printf("total freq = %d\n",tree->freq);
+		printf("Tree Starts here-->\n root node\n");
+		printf("Node = %p total freq = %d\n",tree, tree->freq);
 	} else if (dir == LEFT) {
 		printf("1\n");
-		printf("total freq = %d\n",tree->freq);
+		printf("Node = %p total freq = %d\n",tree, tree->freq);
 		if (tree->letter != -1)
 			printf("letter = %c\n",tree->letter);
 	} else {
 		printf("0\n");
-		printf("total freq = %d\n",tree->freq);
+		printf("Node = %p total freq = %d\n",tree, tree->freq);
 		if (tree->letter != -1)
 			printf("letter = %c\n",tree->letter);
 
 	}
-	traverse_tree(tree->right, RIGHT);
+	print_preorder(tree->left, LEFT);
+	print_preorder(tree->right, RIGHT);
 
 }
 
@@ -229,7 +232,7 @@ struct tree *create_mix_tree(struct tree *tree, struct table *node)
 	return root;
 }
 
-struct tree * create_huffman_tree(struct table *table)
+struct tree *create_huffman_tree(struct table *table)
 {
 	struct table *cur = table;
 	struct table *next = cur->next;
@@ -257,32 +260,126 @@ struct tree * create_huffman_tree(struct table *table)
 	return c_root;
 }
 
-void find_in_tree(struct tree *tree, char letter,  char *value, enum direction dir, int *count)
+/* we know left path is the longest path
+*/
+int longest_path(struct tree *tree)
+{
+	struct tree *node = NULL;
+	int count = 0;
+	for (node = tree; node; node = node->left)
+		count++;
+
+	return count;
+}
+
+void reset_path(struct path *path, int reset_index)
+{
+	int i;
+	path->cur = reset_index; /* current node */
+	for (i = reset_index; i < path->len; i++) {
+			path->pointer[i] = NULL;
+	}
+}
+
+void add_to_path(struct path *path, struct tree *node, enum direction dir)
+{
+	int i;
+
+	if (!path)
+		return;
+	if (!node)
+		return reset_path(path, 0);
+
+	depth++;
+
+	printf("node to add %p\n", node);
+	printf("depth = %d\n", depth);
+	//print_path(path);
+
+	if (path->cur >= path->len) {
+		printf("ERR: FULL PATH\n");
+		return;
+	}
+
+	printf("add pointer = %p cur = %d\n", node, path->cur);
+	path->pointer[path->cur] = node;
+	path->dir[path->cur] = dir;
+	path->cur++;
+	return;
+
+}
+
+void remove_last_node(struct path *path)
+{
+	if (path->cur <= 0) {
+		printf("ERR: EMPTY ATH\n");
+		return;
+	}
+	path->pointer[path->cur] = NULL;
+	path->cur--;
+
+}
+
+void extract_path(struct path *path)
+{
+	int j;
+
+	path->codes->len = path->cur;
+	path->codes->code_prefix = (char *)malloc(path->codes->len);
+	if (!path->codes->code_prefix)
+		return;
+	printf("code for letter %c:\n", path->letter);
+	for (j = 0; j < path->codes->len - 1; j++) {
+		path->codes->code_prefix[j] = path->dir[j + 1];
+		printf("%d", path->codes->code_prefix[j]);
+	}
+	printf("\n");
+}
+
+void path_in_tree(struct tree *tree, struct path *path, enum direction dir)
 {
 	if (!tree)
 		return;
 	if (dir == ROOT) {
+		add_to_path(path, tree, dir);
+		if (tree->letter == path->letter) {
+			return;
+		}
 	} else if (dir == LEFT) {
-		value[*count] = 'a';
-		(*count)++;
-		printf("%d\n",*count);
-		if (tree->letter == letter) {
-			printf("%c %d %s\n",letter, *count, value);
-			depth = *count;
+		add_to_path(path, tree, dir);
+		if (tree->letter == path->letter) {
+			printf("%c %p\n",path->letter, tree);
+			printf("*************\n");
+			print_path(path);
+			printf("*************\n");
+			extract_path(path);
 			return;
 		}
 	} else {
-		value[*count] = 'b';
-		(*count)++;
-		printf("%d\n",*count);
-		if (tree->letter == letter) {
-			printf("%c %d %s\n",letter, *count, value);
-			depth = *count;
+		add_to_path(path, tree, dir);
+		if (tree->letter == path->letter) {
+			printf("%c %p\n",path->letter, tree);
+			printf("*************\n");
+			print_path(path);
+			printf("*************\n");
+			extract_path(path);
 			return;
 		}
 	}
-	find_in_tree(tree->left, letter, value, LEFT, count);
-	find_in_tree(tree->right, letter, value, RIGHT, count);
+	path_in_tree(tree->left, path, LEFT);
+	path_in_tree(tree->right, path, RIGHT);
+	remove_last_node(path);
+}
+
+int total_nodes(struct tree *tree)
+{
+	static int count = 0;
+	if (!tree)
+		return count;
+	else
+		count++;
+	total_nodes(tree->left);
+	total_nodes(tree->right);
 
 }
 
@@ -290,21 +387,26 @@ int convert_to_codes(struct tree *tree, struct code_table *codes)
 {
 	int i;
 	char value[8];
+	int num_nodes = total_nodes(tree); /* number of nodes in tree */
+
+	printf("num_nodes = %d\n", num_nodes);
 	for (i = 0; i < total_leaves; i++) {
-		int j;
-		depth = 0;
-		memset(value, 0, 8);
-		find_in_tree(tree, codes[i].letter, value, ROOT, &depth);
-		printf("depth = %d\n", depth);
-		codes[i].len = depth;
 
-		codes[i].code_prefix = (char *)malloc(depth);
-		if (!codes[i].code_prefix)
-			return -1;
+		struct path path;
 
-		for (j = 0; j < depth; j++)
-			codes[i].code_prefix[j] = value[j];
+		path.pointer = malloc(num_nodes * sizeof(void *));
+		path.dir = malloc(num_nodes * sizeof(int));
 
+		path.len = num_nodes;
+		reset_path(&path, 0);
+
+		path.letter = codes[i].letter;
+		path.codes = &codes[i];
+		path_in_tree(tree, &path, ROOT);
+
+		print_path(&path);
+
+		free(path.pointer);
 	}
 
 }
@@ -350,7 +452,7 @@ int main (int argc, char *argv[])
 	print_table(table);
 	total_leaves = sort_table(table);
 	huffman_tree = create_huffman_tree(table);
-	traverse_tree(huffman_tree, ROOT);
+	print_preorder(huffman_tree, ROOT);
 
 	codes = malloc(sizeof(struct code_table) * total_leaves);
 	if (!codes)
@@ -369,8 +471,8 @@ int main (int argc, char *argv[])
 	for (i = 0; i < total_leaves; i++) {
 		int j;
 		printf("letter = %c code =", codes[i].letter);
-		for (j = 0; j < codes[i].len; j++)
-			printf("%c", codes[i].code_prefix[j]);
+		for (j = 0; j < codes[i].len - 1; j++)
+			printf("%d", codes[i].code_prefix[j]);
 		printf("\n");
 	}
 err:
