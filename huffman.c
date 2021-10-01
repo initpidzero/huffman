@@ -38,7 +38,6 @@ struct path {
 };
 
 static int total_leaves = 0;
-static int depth = 0;
 
 void swap_node(struct table *node1, struct table *node2)
 {
@@ -100,8 +99,9 @@ int number_of_occurence(char * str, struct table *node, struct table *table)
 			if (!unique) {
 				if (!present_in_table(*temp, table))
 					unique = temp - str;
-			} else
-				printf("unique = %d\n", unique);
+			} else {
+			//	printf("unique = %d\n", unique);
+			}
 
 	}
 
@@ -184,7 +184,7 @@ struct tree *add_tree_node(char letter, int freq)
 	tree->left = NULL;
 	tree->right = NULL;
 
-	printf("char = %c freq =%d\n", (tree->letter == -1)?'?':tree->letter, tree->freq);
+//	printf("char = %c freq =%d\n", (tree->letter == -1)?'?':tree->letter, tree->freq);
 	return tree;
 }
 
@@ -290,18 +290,15 @@ void add_to_path(struct path *path, struct tree *node, enum direction dir)
 	if (!node)
 		return reset_path(path, 0);
 
-	depth++;
 
-	printf("node to add %p\n", node);
-	printf("depth = %d\n", depth);
-	//print_path(path);
+	//printf("node to add %p\n", node);
 
 	if (path->cur >= path->len) {
 		printf("ERR: FULL PATH\n");
 		return;
 	}
 
-	printf("add pointer = %p cur = %d\n", node, path->cur);
+	//printf("add pointer = %p cur = %d\n", node, path->cur);
 	path->pointer[path->cur] = node;
 	path->dir[path->cur] = dir;
 	path->cur++;
@@ -348,7 +345,7 @@ void path_in_tree(struct tree *tree, struct path *path, enum direction dir)
 	} else if (dir == LEFT) {
 		add_to_path(path, tree, dir);
 		if (tree->letter == path->letter) {
-			printf("%c %p\n",path->letter, tree);
+	//		printf("%c %p\n",path->letter, tree);
 			printf("*************\n");
 			print_path(path);
 			printf("*************\n");
@@ -358,7 +355,7 @@ void path_in_tree(struct tree *tree, struct path *path, enum direction dir)
 	} else {
 		add_to_path(path, tree, dir);
 		if (tree->letter == path->letter) {
-			printf("%c %p\n",path->letter, tree);
+	//		printf("%c %p\n",path->letter, tree);
 			printf("*************\n");
 			print_path(path);
 			printf("*************\n");
@@ -411,20 +408,12 @@ int convert_to_codes(struct tree *tree, struct code_table *codes)
 
 }
 
-int main (int argc, char *argv[])
+int freq_of_chars(struct table *table, char *str)
 {
-	struct code_table *codes;
-	struct tree *huffman_tree;
-	char *str = "ABABABABCDDDEAABBECEADFBADFDFA";
 	int i = 0;
-	int ret = 0;
-	struct table *table = (struct table *)malloc(sizeof(struct table));
 	struct table *temp = table;
 	if (!table)
 		return -1;
-
-	if (argc >1)
-		str = argv[1];
 
 	table->letter = str[i];
 	table->freq = 0;
@@ -434,12 +423,10 @@ int main (int argc, char *argv[])
 		pos_of_next = number_of_occurence(str, temp, table);
 		if (pos_of_next) {
 			i  = pos_of_next;
-			printf("pos = %d i = %d\n", pos_of_next, i);
+	//		printf("pos = %d i = %d\n", pos_of_next, i);
 			temp->next = (struct table *)malloc(sizeof(struct table));
-			if (!temp) {
-				fprintf(stderr, "no mem for reallocation\n");
-				ret = -1;
-				goto err;
+			if (!temp->next) {
+				fprintf(stderr, "no mem\n");
 			}
 			temp = temp->next;
 			temp->letter = str[i];
@@ -449,6 +436,26 @@ int main (int argc, char *argv[])
 
 
 	}
+}
+int main (int argc, char *argv[])
+{
+	struct code_table *codes;
+	struct tree *huffman_tree;
+	char *str = "ABABABABCDDDEAABBECEADFBADFDFA";
+	int ret = 0;
+	struct table *temp;
+	int i;
+	struct table *table = (struct table *)malloc(sizeof(struct table));
+	if (!table)
+		goto err;
+
+	if (argc >1)
+		str = argv[1];
+
+	ret = freq_of_chars(table, str);
+	if (ret == -1)
+		goto err;
+
 	print_table(table);
 	total_leaves = sort_table(table);
 	huffman_tree = create_huffman_tree(table);
