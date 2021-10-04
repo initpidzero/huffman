@@ -1,3 +1,4 @@
+/* An implementation of huffman encoding */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -132,8 +133,10 @@ void free_code_table(struct code_table *codes, int total)
 
 void free_tree(struct tree *tree)
 {
-	if (tree->left == NULL && tree->right == NULL)
+	if (tree->left == NULL && tree->right == NULL) {
 		free(tree);
+		tree = NULL;
+	}
 	else if (tree->left)
 		free_tree(tree->left);
 	else if (tree->right)
@@ -144,7 +147,7 @@ void free_tree(struct tree *tree)
 void free_table(struct table *table)
 {
 	struct table *cur = table;
-	while(cur) {
+	while (cur) {
 		struct table *temp = cur;
 		cur = cur->next;
 		free(temp);
@@ -192,6 +195,8 @@ void print_preorder(struct tree *tree, enum direction dir)
 struct tree *add_tree_node(char letter, int freq)
 {
 	struct tree *tree = (struct tree *)malloc(sizeof(struct tree));
+	if (!tree) return NULL;
+
 	tree->letter = letter;
 	tree->freq = freq;
 	tree->left = NULL;
@@ -207,12 +212,21 @@ struct tree *create_tree(struct table *lnode, struct table *rnode)
 	struct tree *root;
 	struct tree *temp;
 
+	if (!lnode)
+		return NULL;
+	/* this might only happen if there is one one node */
+	if (!rnode)
+		return add_tree_node(lnode->letter, lnode->freq);
+
 	root = add_tree_node(-1, lnode->freq + rnode->freq);
+	if (!root) return NULL;
 
 	temp = add_tree_node(lnode->letter, lnode->freq);
+	if (!temp) return NULL;
 	root->left = temp; /* attach left node */
 
 	temp = add_tree_node(rnode->letter, rnode->freq);
+	if (!temp) return NULL;
 	root->right = temp; /* attach right node */
 
 	return root;
@@ -223,6 +237,7 @@ struct tree *combine_tree(struct tree *tree, struct tree *new_tree)
 {
 	struct tree *root;
 	root = add_tree_node(-1, tree->freq + new_tree->freq);
+	if (!root) return NULL;
 	root->left = tree; /* attach left node */
 	root->right = new_tree; /* attach right node */
 
@@ -236,10 +251,12 @@ struct tree *create_mix_tree(struct tree *tree, struct table *node)
 	struct tree *temp;
 
 	root = add_tree_node(-1, tree->freq + node->freq);
+	if (!root) return NULL;
 
 	root->left = tree; /* attach left node */
 
 	temp = add_tree_node(node->letter, node->freq);
+	if (!temp) return NULL;
 	root->right = temp; /* attach right node */
 
 	return root;
@@ -247,25 +264,34 @@ struct tree *create_mix_tree(struct tree *tree, struct table *node)
 
 struct tree *create_huffman_tree(struct table *table)
 {
+	struct tree *c_root;
 	struct table *cur = table;
 	struct table *next = cur->next;
-	struct tree *c_root = create_tree(cur, next);
 
+	c_root = create_tree(cur, next);
+	if (!c_root) return NULL;
+
+	if (!next)
+		return c_root;
 	for (cur = next->next; cur != NULL; cur = cur->next) {
 		struct tree *temp = NULL;
 		next = cur->next;
 		if (next) {
 			if (c_root->freq <= next->freq) {
 				temp = create_mix_tree(c_root, cur);
+				if (!temp) return NULL;
 				c_root = temp;
 			} else {
 				temp = create_tree(cur, next);
+				if (!temp) return NULL;
 				c_root = combine_tree(c_root, temp);
+				if (!c_root) return NULL;
 				cur = next; /* we have consumed both */
 			}
 
 		} else {
 			c_root = create_mix_tree(c_root, cur);
+			if (!c_root) return NULL;
 		}
 
 	}
@@ -391,6 +417,9 @@ int convert_to_codes(struct tree *tree, struct code_table *codes)
 	for (i = 0; i < total_leaves; i++) {
 
 		struct path path;
+		memset(&path, 0 , sizeof(struct path));
+		path.pointer = NULL;
+		path.dir = NULL;
 
 		path.pointer = malloc(num_nodes * sizeof(void *));
 		if(!path.pointer)
@@ -434,6 +463,7 @@ int freq_of_chars(struct table *table, char *str)
 			temp->next = (struct table *)malloc(sizeof(struct table));
 			if (!temp->next) {
 				fprintf(stderr, "no mem\n");
+                                return -1;
 			}
 			temp = temp->next;
 			temp->letter = str[i];
@@ -441,8 +471,8 @@ int freq_of_chars(struct table *table, char *str)
 		} else
 			break;
 
-
 	}
+        return 0;
 }
 /* how many bits are required to encode this string */
 int total_bits_encoded(struct code_table *codes, struct table *table)
@@ -543,6 +573,8 @@ int main (int argc, char *argv[])
 	print_table(table);
 	total_leaves = sort_table(table);
 	huffman_tree = create_huffman_tree(table);
+	if (!huffman_tree)
+		goto err;
 	print_preorder(huffman_tree, ROOT);
 
 	codes = malloc(sizeof(struct code_table) * total_leaves);
@@ -591,6 +623,7 @@ err:
 	if (huffman_tree) free_tree(huffman_tree);
 	if (codes) free_code_table(codes, total_leaves);
 	if (encoded_str) free(encoded_str);
+	if (decoded_str) free(decoded_str);
 
 	return ret;
 }
