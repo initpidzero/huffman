@@ -2,12 +2,14 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* list for finding finding frequency of each character */
 struct table {
 	char letter;
 	int freq;
 	struct table *next;
 };
 
+/* huffman tree */
 struct tree {
 	char letter;
 	int freq;
@@ -16,18 +18,21 @@ struct tree {
 
 };
 
+/* lookup table for character to codes */
 struct code_table {
 	char letter;
 	char *code_prefix;
 	int len;
 };
 
+/* for tree traversal, we want to know if it was left child or right child */
 enum direction {
 	RIGHT = 0,
 	LEFT = 1,
 	ROOT = 2,
 };
 
+/* For getting codes, we need to get path from root to leaves */
 struct path {
 	int letter;
 	int len;
@@ -37,8 +42,10 @@ struct path {
 	struct code_table *codes;
 };
 
+/* the last nodes on huffman tree */
 static int total_leaves = 0;
 
+/* swap function for sorting our list */
 void swap_node(struct table *node1, struct table *node2)
 {
 	char letter = node1->letter;
@@ -49,6 +56,7 @@ void swap_node(struct table *node1, struct table *node2)
 	node2->freq = freq;
 }
 
+/* print list for characters and thier frequency in string */
 void print_table(struct table *table)
 {
 	struct table *temp;
@@ -59,6 +67,8 @@ void print_table(struct table *table)
 }
 
 
+/* check if we have already counted this character in our list
+ * */
 int present_in_table(char str, struct table *table)
 {
 	struct table *temp;
@@ -70,6 +80,8 @@ int present_in_table(char str, struct table *table)
 
 }
 
+/* a basic sort for our char-freq list */
+/* it returns total nodes in the list */
 int sort_table(struct table *table)
 {
 	int total_nodes  = 1; /* since we are skipping last node, we start at 1 */
@@ -83,11 +95,11 @@ int sort_table(struct table *table)
 		total_nodes++;
 	}
 	printf("total_nodes = %d\n", total_nodes);
-	print_table(table);
 
 	return total_nodes;
 }
 
+/* Function to check how many time does a character appear in the string*/
 int number_of_occurence(char * str, struct table *node, struct table *table)
 {
 	char *temp;
@@ -97,6 +109,8 @@ int number_of_occurence(char * str, struct table *node, struct table *table)
 			node->freq++;
 		else
 			if (!unique) {
+				/* Find the next character which has already not
+				 * been counted (next unique) */
 				if (!present_in_table(*temp, table))
 					unique = temp - str;
 			} else {
@@ -140,7 +154,6 @@ void free_table(struct table *table)
 
 void print_path(struct path *path)
 {
-
 	printf("print path for %c cur = %d:\n",path->letter, path->cur);
 
 	for (int i = 0; i < path->len; i++) {
@@ -272,6 +285,7 @@ int longest_path(struct tree *tree)
 	return count;
 }
 
+/* fill path pointer with NULL values */
 void reset_path(struct path *path, int reset_index)
 {
 	int i;
@@ -281,6 +295,7 @@ void reset_path(struct path *path, int reset_index)
 	}
 }
 
+/* add a new tree node address to the path table */
 void add_to_path(struct path *path, struct tree *node, enum direction dir)
 {
 	int i;
@@ -289,9 +304,6 @@ void add_to_path(struct path *path, struct tree *node, enum direction dir)
 		return;
 	if (!node)
 		return reset_path(path, 0);
-
-
-	//printf("node to add %p\n", node);
 
 	if (path->cur >= path->len) {
 		printf("ERR: FULL PATH\n");
@@ -306,6 +318,8 @@ void add_to_path(struct path *path, struct tree *node, enum direction dir)
 
 }
 
+/* path table is acting like a stack, so we remove the tree nodes when we are
+ * coming back from our recurse function */
 void remove_last_node(struct path *path)
 {
 	if (path->cur <= 0) {
@@ -317,57 +331,44 @@ void remove_last_node(struct path *path)
 
 }
 
+/* At this point, path variable contains exact path between root node and relevant character node */
 void extract_path(struct path *path)
 {
 	int j;
 
-	path->codes->len = path->cur;
+	path->codes->len = path->cur - 1;
 	path->codes->code_prefix = (char *)malloc(path->codes->len);
 	if (!path->codes->code_prefix)
 		return;
 	printf("code for letter %c:\n", path->letter);
-	for (j = 0; j < path->codes->len - 1; j++) {
+	for (j = 0; j < path->codes->len; j++) {
 		path->codes->code_prefix[j] = path->dir[j + 1];
 		printf("%d", path->codes->code_prefix[j]);
 	}
 	printf("\n");
 }
 
+/* Traverse the tree until you find right character node/leaf */
 void path_in_tree(struct tree *tree, struct path *path, enum direction dir)
 {
 	if (!tree)
 		return;
-	if (dir == ROOT) {
-		add_to_path(path, tree, dir);
-		if (tree->letter == path->letter) {
-			return;
-		}
-	} else if (dir == LEFT) {
-		add_to_path(path, tree, dir);
-		if (tree->letter == path->letter) {
-	//		printf("%c %p\n",path->letter, tree);
-			printf("*************\n");
-			print_path(path);
-			printf("*************\n");
-			extract_path(path);
-			return;
-		}
-	} else {
-		add_to_path(path, tree, dir);
-		if (tree->letter == path->letter) {
-	//		printf("%c %p\n",path->letter, tree);
-			printf("*************\n");
-			print_path(path);
-			printf("*************\n");
-			extract_path(path);
-			return;
-		}
+	add_to_path(path, tree, dir);
+	if (tree->letter == path->letter) {
+		//		printf("%c %p\n",path->letter, tree);
+		printf("*************\n");
+		print_path(path);
+		printf("*************\n");
+		extract_path(path);
+		return;
 	}
 	path_in_tree(tree->left, path, LEFT);
 	path_in_tree(tree->right, path, RIGHT);
+	/* pop */
 	remove_last_node(path);
 }
 
+/* all the nodes present in our tree */
 int total_nodes(struct tree *tree)
 {
 	static int count = 0;
@@ -392,7 +393,11 @@ int convert_to_codes(struct tree *tree, struct code_table *codes)
 		struct path path;
 
 		path.pointer = malloc(num_nodes * sizeof(void *));
+		if(!path.pointer)
+			goto freepath;
 		path.dir = malloc(num_nodes * sizeof(int));
+		if(!path.dir)
+			goto freepath;
 
 		path.len = num_nodes;
 		reset_path(&path, 0);
@@ -403,7 +408,9 @@ int convert_to_codes(struct tree *tree, struct code_table *codes)
 
 		print_path(&path);
 
-		free(path.pointer);
+freepath:
+		if(path.pointer) free(path.pointer);
+		if(path.dir) free(path.dir);
 	}
 
 }
@@ -437,6 +444,39 @@ int freq_of_chars(struct table *table, char *str)
 
 	}
 }
+/* how many bits are required to encode this string */
+int total_bits_encoded(struct code_table *codes, struct table *table)
+{
+	struct table *temp = table;
+	int i = 0;
+	int sum = 0;
+	for (;temp; temp=temp->next, i++) {
+		if (temp->letter != codes[i].letter) {
+			fprintf(stderr, "Catastropic err\n");
+			return -1;
+		}
+		sum = sum + (temp->freq * codes[i].len);
+	}
+
+	return sum;
+}
+
+/* encode str into encoded_str using codes from code table codes */
+void encode(char *str, struct code_table *codes, char *encoded_str)
+{
+	char *tmp = NULL;
+	int j = 0;
+	for (tmp = str; *tmp; tmp++) {
+		int i;
+		for (i = 0; i < total_leaves; i++)
+			if (codes[i].letter == *tmp) {
+				memcpy(encoded_str + j, codes[i].code_prefix, codes[i].len);
+				j += codes[i].len;
+				break;
+			}
+	}
+}
+
 int main (int argc, char *argv[])
 {
 	struct code_table *codes;
@@ -444,6 +484,8 @@ int main (int argc, char *argv[])
 	char *str = "ABABABABCDDDEAABBECEADFBADFDFA";
 	int ret = 0;
 	struct table *temp;
+	char *encoded_str;
+	int encoding_len;
 	int i;
 	struct table *table = (struct table *)malloc(sizeof(struct table));
 	if (!table)
@@ -475,13 +517,26 @@ int main (int argc, char *argv[])
 		goto err;
 
 	printf("%s\n", str);
+	print_table(table);
 	for (i = 0; i < total_leaves; i++) {
 		int j;
 		printf("letter = %c code =", codes[i].letter);
-		for (j = 0; j < codes[i].len - 1; j++)
+		for (j = 0; j < codes[i].len; j++)
 			printf("%d", codes[i].code_prefix[j]);
 		printf("\n");
 	}
+
+	encoding_len = total_bits_encoded(codes, table);
+	encoded_str = malloc(encoding_len);
+	if (!encoded_str)
+		goto err;
+
+	printf("total bytes needed = %d\n", encoding_len);
+	encode(str, codes, encoded_str);
+	printf("%s encoded to:\n", str);
+	for (i = 0; i < encoding_len; i++)
+		printf("%d", encoded_str[i]);
+	printf("\n");
 err:
 	if (table) free_table(table);
 	if (huffman_tree) free_tree(huffman_tree);
