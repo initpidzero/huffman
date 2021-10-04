@@ -477,6 +477,46 @@ void encode(char *str, struct code_table *codes, char *encoded_str)
 	}
 }
 
+/* decode encoded_str to decoded_str using code table codes */
+void decode(char *encoded_str, int encoded_len, char *decoded_str, struct code_table *codes)
+{
+	int j = 0;
+	int i;
+	int k;
+	int match = 0;
+	int m = 0;
+	while(j < encoded_len) {
+		for (i = total_leaves - 1; i >=0; i--) {
+			for(k = 0; k < codes[i].len; k++) {
+				if (codes[i].code_prefix[k] == encoded_str[k + j])
+					match = 1;
+				else {
+					match = 0;
+					break;
+				}
+			}
+			if (match == 1) {
+				decoded_str[m++] = codes[i].letter;
+				//printf("matched at %d %c %c\n", j, codes[i].letter , decoded_str[j]);
+				j = j + codes[i].len;
+				break;
+			}
+		}
+
+	}
+	decoded_str[m] = '\0';
+
+}
+
+int decode_len(struct table *table)
+{
+	int sum = 1;
+	struct table *temp = table;
+	for (;temp; temp=temp->next) {
+		sum = sum + (temp->freq);
+	}
+	return sum;
+}
 int main (int argc, char *argv[])
 {
 	struct code_table *codes;
@@ -485,7 +525,9 @@ int main (int argc, char *argv[])
 	int ret = 0;
 	struct table *temp;
 	char *encoded_str;
+	char *decoded_str;
 	int encoding_len;
+	int decoding_len;
 	int i;
 	struct table *table = (struct table *)malloc(sizeof(struct table));
 	if (!table)
@@ -537,10 +579,18 @@ int main (int argc, char *argv[])
 	for (i = 0; i < encoding_len; i++)
 		printf("%d", encoded_str[i]);
 	printf("\n");
+
+	decoding_len = decode_len(table);
+	decoded_str = malloc(decoding_len);
+	if (!decoded_str)
+		goto err;
+	decode(encoded_str,encoding_len, decoded_str ,codes);
+	printf("decoded string = %s\n", decoded_str);
 err:
 	if (table) free_table(table);
 	if (huffman_tree) free_tree(huffman_tree);
 	if (codes) free_code_table(codes, total_leaves);
+	if (encoded_str) free(encoded_str);
 
 	return ret;
 }
