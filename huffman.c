@@ -38,8 +38,8 @@ struct path {
 	int letter;
 	int len;
 	int cur;
+	unsigned char *dir;
 	void **pointer;
-	int *dir;
 	struct code_table *codes;
 };
 
@@ -61,6 +61,8 @@ void swap_node(struct table *node1, struct table *node2)
 void print_table(struct table *table)
 {
 	struct table *temp;
+	if (!table)
+		return;
 	printf("character	frequency\n");
 	for (temp = table; temp; temp = temp->next) {
 		printf("%c		%d\n", temp->letter, temp->freq);
@@ -73,6 +75,8 @@ void print_table(struct table *table)
 int present_in_table(char str, struct table *table)
 {
 	struct table *temp;
+	if (!table)
+		return -1;
 	for (temp = table; temp; temp = temp->next) {
 		if(str == temp->letter)
 			return 1;
@@ -83,12 +87,12 @@ int present_in_table(char str, struct table *table)
 
 /* a basic sort for our char-freq list */
 /* it returns total nodes in the list */
-int sort_table(struct table *table)
+int sort_table(struct table **table)
 {
 	int total_nodes  = 1; /* since we are skipping last node, we start at 1 */
-	struct table *cur = table;
-	struct table *next = table->next;
-	for (cur = table; cur->next != NULL; cur = cur->next) {
+	struct table *cur = *table;
+	struct table *next = (*table)->next;
+	for (cur = *table; cur->next != NULL; cur = cur->next) {
 		for(next = cur->next; next != NULL; next = next->next) {
 			if(next->freq < cur->freq)
 				swap_node(cur, next);
@@ -101,7 +105,7 @@ int sort_table(struct table *table)
 }
 
 /* Function to check how many time does a character appear in the string*/
-int number_of_occurence(char * str, struct table *node, struct table *table)
+int number_of_occurence(char *str, struct table *node, struct table *table)
 {
 	char *temp;
 	int unique = 0;
@@ -131,22 +135,22 @@ void free_code_table(struct code_table *codes, int total)
 	free(codes);
 }
 
-void free_tree(struct tree *tree)
+void free_tree(struct tree **tree)
 {
-	if (tree->left == NULL && tree->right == NULL) {
-		free(tree);
-		tree = NULL;
+	if ((*tree)->left == NULL && (*tree)->right == NULL) {
+		free(*tree);
+		*tree = NULL;
 	}
-	else if (tree->left)
-		free_tree(tree->left);
-	else if (tree->right)
-		free_tree(tree->right);
+	else if ((*tree)->left)
+		free_tree(&(*tree)->left);
+	else if ((*tree)->right)
+		free_tree(&(*tree)->right);
 
 }
 
-void free_table(struct table *table)
+void free_table(struct table **table)
 {
-	struct table *cur = table;
+	struct table *cur = *table;
 	while (cur) {
 		struct table *temp = cur;
 		cur = cur->next;
@@ -352,6 +356,7 @@ void remove_last_node(struct path *path)
 		printf("ERR: EMPTY ATH\n");
 		return;
 	}
+	printf("remove %d\n", path->cur);
 	path->pointer[path->cur] = NULL;
 	path->cur--;
 
@@ -363,10 +368,19 @@ void extract_path(struct path *path)
 	int j;
 
 	path->codes->len = path->cur - 1;
+	/* if there is only one node in the tree */
+	if (path->codes->len == 0)
+		path->codes->len = 1;
 	path->codes->code_prefix = (char *)malloc(path->codes->len);
 	if (!path->codes->code_prefix)
 		return;
 	printf("code for letter %c:\n", path->letter);
+
+        if (path->codes->len == 1) {
+                path->codes->code_prefix[0] = 0;
+                return;
+        }
+
 	for (j = 0; j < path->codes->len; j++) {
 		path->codes->code_prefix[j] = path->dir[j + 1];
 		printf("%d", path->codes->code_prefix[j]);
@@ -405,29 +419,37 @@ int total_nodes(struct tree *tree)
 	total_nodes(tree->left);
 	total_nodes(tree->right);
 
+	return count;
 }
 
+/* we have the tree, now we want to extract codes using path between root to
+ * leaf nodes */
 int convert_to_codes(struct tree *tree, struct code_table *codes)
 {
 	int i;
-	char value[8];
+	int ret = 0;
 	int num_nodes = total_nodes(tree); /* number of nodes in tree */
 
 	printf("num_nodes = %d\n", num_nodes);
 	for (i = 0; i < total_leaves; i++) {
 
 		struct path path;
+
 		memset(&path, 0 , sizeof(struct path));
 		path.pointer = NULL;
 		path.dir = NULL;
 
 		path.pointer = malloc(num_nodes * sizeof(void *));
-		if(!path.pointer)
+		if (!path.pointer) {
+			ret = -1;
 			goto freepath;
-		path.dir = malloc(num_nodes * sizeof(int));
-		if(!path.dir)
+		}
+		path.dir = (unsigned char *)malloc(num_nodes * sizeof(unsigned char));
+		if (!path.dir) {
+			ret = -1;
 			goto freepath;
-
+		}
+		//printf("dir = %p\n",path->dir);
 		path.len = num_nodes;
 		reset_path(&path, 0);
 
@@ -438,25 +460,29 @@ int convert_to_codes(struct tree *tree, struct code_table *codes)
 		print_path(&path);
 
 freepath:
-		if(path.pointer) free(path.pointer);
-		if(path.dir) free(path.dir);
+		//printf("dir = %p\n",path.dir);
+		if (path.dir) free(path.dir);
+		if (path.pointer) free(path.pointer);
+		if (ret == -1) break;
 	}
 
+	return ret;
 }
 
-int freq_of_chars(struct table *table, char *str)
+int freq_of_chars(struct table **table, char *str)
 {
 	int i = 0;
-	struct table *temp = table;
+	struct table *temp;
 	if (!table)
 		return -1;
 
-	table->letter = str[i];
-	table->freq = 0;
-	table->next = NULL;
-	while(str[i]) {
+	(*table)->letter = str[i];
+	(*table)->freq = 0;
+	(*table)->next = NULL;
+        temp = *table;
+	while (str[i]) {
 		int pos_of_next = 0;
-		pos_of_next = number_of_occurence(str, temp, table);
+		pos_of_next = number_of_occurence(str, temp, *table);
 		if (pos_of_next) {
 			i  = pos_of_next;
 	//		printf("pos = %d i = %d\n", pos_of_next, i);
@@ -465,9 +491,10 @@ int freq_of_chars(struct table *table, char *str)
 				fprintf(stderr, "no mem\n");
                                 return -1;
 			}
+			temp->next->letter = str[i];
+			temp->next->freq = 0;
+                        temp->next->next = NULL;
 			temp = temp->next;
-			temp->letter = str[i];
-			temp->freq = 0;
 		} else
 			break;
 
@@ -477,10 +504,14 @@ int freq_of_chars(struct table *table, char *str)
 /* how many bits are required to encode this string */
 int total_bits_encoded(struct code_table *codes, struct table *table)
 {
-	struct table *temp = table;
+	struct table *temp;
 	int i = 0;
 	int sum = 0;
-	for (;temp; temp=temp->next, i++) {
+
+        if (!table)
+                return -1;
+
+	for (temp = table ;temp; temp=temp->next, i++) {
 		if (temp->letter != codes[i].letter) {
 			fprintf(stderr, "Catastropic err\n");
 			return -1;
@@ -541,12 +572,18 @@ void decode(char *encoded_str, int encoded_len, char *decoded_str, struct code_t
 int decode_len(struct table *table)
 {
 	int sum = 1;
-	struct table *temp = table;
-	for (;temp; temp=temp->next) {
+	struct table *temp;
+
+        if (!table)
+                return -1;
+
+	for (temp = table; temp; temp=temp->next) {
 		sum = sum + (temp->freq);
 	}
+
 	return sum;
 }
+
 int main (int argc, char *argv[])
 {
 	struct code_table *codes;
@@ -566,12 +603,12 @@ int main (int argc, char *argv[])
 	if (argc >1)
 		str = argv[1];
 
-	ret = freq_of_chars(table, str);
+	ret = freq_of_chars(&table, str);
 	if (ret == -1)
 		goto err;
 
 	print_table(table);
-	total_leaves = sort_table(table);
+	total_leaves = sort_table(&table);
 	huffman_tree = create_huffman_tree(table);
 	if (!huffman_tree)
 		goto err;
@@ -619,8 +656,8 @@ int main (int argc, char *argv[])
 	decode(encoded_str,encoding_len, decoded_str ,codes);
 	printf("decoded string = %s\n", decoded_str);
 err:
-	if (table) free_table(table);
-	if (huffman_tree) free_tree(huffman_tree);
+	if (table) free_table(&table);
+	if (huffman_tree) free_tree(&huffman_tree);
 	if (codes) free_code_table(codes, total_leaves);
 	if (encoded_str) free(encoded_str);
 	if (decoded_str) free(decoded_str);
