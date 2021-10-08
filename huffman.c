@@ -137,15 +137,19 @@ void free_code_table(struct code_table *codes, int total)
 
 void free_tree(struct tree **tree)
 {
+	if(*tree == NULL)
+		return;
+	
+	if ((*tree)->left)
+		free_tree(&(*tree)->left);
+	if ((*tree)->right)
+		free_tree(&(*tree)->right);
+
 	if ((*tree)->left == NULL && (*tree)->right == NULL) {
 		free(*tree);
 		*tree = NULL;
+		return;
 	}
-	else if ((*tree)->left)
-		free_tree(&(*tree)->left);
-	else if ((*tree)->right)
-		free_tree(&(*tree)->right);
-
 }
 
 void free_table(struct table **table)
@@ -299,6 +303,10 @@ struct tree *create_huffman_tree(struct table *table)
 		}
 
 	}
+	return c_root;
+err:
+        if (c_root) free_tree(&c_root);
+        c_root = NULL;
 
 	return c_root;
 }
@@ -356,8 +364,8 @@ void remove_last_node(struct path *path)
 		printf("ERR: EMPTY ATH\n");
 		return;
 	}
-	printf("remove %d\n", path->cur);
-	path->pointer[path->cur] = NULL;
+	//printf("remove %d %p\n", path->cur, path->pointer[path->cur - 1]);
+	path->pointer[path->cur - 1] = NULL;
 	path->cur--;
 
 }
@@ -369,17 +377,20 @@ void extract_path(struct path *path)
 
 	path->codes->len = path->cur - 1;
 	/* if there is only one node in the tree */
-	if (path->codes->len == 0)
+	if (path->codes->len == 0) {
 		path->codes->len = 1;
+		path->codes->code_prefix = (char *)malloc(1);
+		if (!path->codes->code_prefix)
+			return;
+                path->codes->code_prefix[0] = 0;
+                return;
+	}
+
 	path->codes->code_prefix = (char *)malloc(path->codes->len);
 	if (!path->codes->code_prefix)
 		return;
-	printf("code for letter %c:\n", path->letter);
 
-        if (path->codes->len == 1) {
-                path->codes->code_prefix[0] = 0;
-                return;
-        }
+	printf("code for letter %c:\n", path->letter);
 
 	for (j = 0; j < path->codes->len; j++) {
 		path->codes->code_prefix[j] = path->dir[j + 1];
